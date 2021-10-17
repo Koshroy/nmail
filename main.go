@@ -23,6 +23,10 @@ type NNCPMailAddress struct {
 	NodeName  string
 }
 
+func (a NNCPMailAddress) String() string {
+	return a.LocalPart + "@" + a.NodeName + ".nncp"
+}
+
 func main() {
 	rcpt := flag.String("rcpt", "", "mail recipient")
 	debug := flag.Bool("debug", false, "debug mode")
@@ -92,6 +96,38 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 	nodeName := strings.TrimSuffix(emailAddr.Domain, ".nncp")
 
 	return NNCPMailAddress{emailAddr.LocalPart, nodeName}, nil
+}
+
+func mungeHeaders(r io.Reader, newFrom *NNCPMailAddress, debug bool) (*mail.Message, error) {
+	if newFrom == nil {
+		return nil, errors.New("a valid new from address is required")
+	}
+
+	msg, err := mail.ReadMessage(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if debug {
+		log.Println("old From header:", msg.Header.Get("From"))
+		log.Println("new From header:", newFrom.String())
+	}
+
+	from := []string{newFrom.String()}
+	msg.Header["From"] = from
+
+	emptyHeaders := make([]string, 0)
+	for h, _ := range msg.Header {
+		if strings.ToLower(h) == "from" && h != "From" {
+			emptyHeaders = append(emptyHeaders, h)
+		}
+	}
+
+	for _, h := range emptyHeaders {
+		msg.Header[h] = make([]string, 0)
+	}
+
+	return msg, nil
 }
 
 func nncpSendmail(nncpCfgPath string, recipient NNCPMailAddress, reader io.Reader, debug bool) error {
