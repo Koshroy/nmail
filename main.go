@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"log"
-	"net/mail"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	message "github.com/emersion/go-message"
+	"github.com/emersion/go-message/mail"
 )
 
 type EmailAddress struct {
@@ -28,21 +31,61 @@ func (a NNCPMailAddress) String() string {
 }
 
 func main() {
+	log.SetOutput(os.Stderr)
 	rcpt := flag.String("rcpt", "", "mail recipient")
 	debug := flag.Bool("debug", false, "debug mode")
 	flag.Parse()
-
+	sendRecv := strings.ToLower(flag.Arg(0))
 	nncpCfgPath := getCfgPath(*debug)
-	if *rcpt == "" {
+	sender := os.Getenv("NNCP_SENDER")
+
+	if sendRecv == "" {
+		sendMail(*rcpt, nncpCfgPath, *debug)
+	} else if sendRecv == "send" {
+		sendMail(*rcpt, nncpCfgPath, *debug)
+	} else if sendRecv == "receive" || sendRecv == "recv" {
+		recvMail(sender, *debug)
+	} else {
+		log.Fatalln(sendRecv, "is not a valid mode")
+	}
+}
+
+func recvMail(sender string, debug bool) {
+	if debug {
+		log.Printf("mail receive")
+	}
+
+	if sender == "" {
+		log.Fatalln("No sender provided in NNCP_SENDER, aborting")
+	}
+
+	msg, err := mungeFrom(os.Stdin, sender, debug)
+	if err != nil {
+		log.Fatalf("Error rewriting message: %v\n", err)
+		return
+	}
+
+	err = msg.WriteTo(os.Stdout)
+	if err != nil {
+		log.Fatalf("error writing mail to stdout: %v\n", err)
+	}
+}
+
+func sendMail(rcpt, nncpCfgPath string, debug bool) {
+	if debug {
+		log.Println("send mail")
+	}
+
+	if rcpt == "" {
 		log.Fatalln("No recipient provided")
 	}
 
-	address, err := parseRecipient(*rcpt)
+	address, err := parseRecipient(rcpt)
 	if err != nil {
-		log.Fatalf("Error parsing recipient address %s: %v\n", *rcpt, err)
+		log.Fatalf("Error parsing recipient address %s: %v\n", rcpt, err)
 	}
 
-	err = nncpSendmail(nncpCfgPath, address, os.Stdin, *debug)
+	err = nncpSendmail(nncpCfgPath, address, os.Stdin, debug)
 	if err != nil {
 		log.Fatalf("error sending mail via nncp: %v\n", err)
 	}
@@ -98,35 +141,57 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 	return NNCPMailAddress{emailAddr.LocalPart, nodeName}, nil
 }
 
-func mungeHeaders(r io.Reader, newFrom *NNCPMailAddress, debug bool) (*mail.Message, error) {
-	if newFrom == nil {
+func setDomain(addr *mail.Address, domain string) mail.Address {
+	mailAddr := addr.Address
+	if mailAddr == "" {
+		return mail.Address{"", ""}
+	}
+
+	splits := strings.SplitN(mailAddr, "@", 2)
+	if len(splits) >= 1 {
+		return mail.Address{addr.Name, splits[0] + "@" + domain}
+	} else {
+		return mail.Address{"", ""}
+	}
+}
+
+func mungeFrom(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
+	if srcNode == "" {
 		return nil, errors.New("a valid new from address is required")
 	}
 
-	msg, err := mail.ReadMessage(r)
-	if err != nil {
-		return nil, err
+	msg, err := message.Read(r)
+	if err != nil && !message.IsUnknownCharset(err) {
+		return nil, fmt.Errorf("could not read mail message: %w", err)
 	}
 
+	oldFromRaw, err := msg.Header.Text("From")
+	if err != nil && !message.IsUnknownCharset(err) {
+		return nil, fmt.Errorf("could not parse From header: %w", err)
+	}
+
+	// If there is no From address in the originating email, then we do
+	// not need to perform header munging, so we should just return the email
+	if oldFromRaw == "" {
+		if debug {
+			log.Println("No From header in source email so no need to munge headers")
+		}
+		return msg, nil
+	}
+
+	oldFrom, err := mail.ParseAddress(oldFromRaw)
+	if err != nil && !message.IsUnknownCharset(err) {
+		return nil, fmt.Errorf("could not parse From address: %w", err)
+	}
+
+	newFrom := setDomain(oldFrom, srcNode + ".nncp")
+
 	if debug {
-		log.Println("old From header:", msg.Header.Get("From"))
+		log.Println("old From header:", oldFrom.String())
 		log.Println("new From header:", newFrom.String())
 	}
 
-	from := []string{newFrom.String()}
-	msg.Header["From"] = from
-
-	emptyHeaders := make([]string, 0)
-	for h, _ := range msg.Header {
-		if strings.ToLower(h) == "from" && h != "From" {
-			emptyHeaders = append(emptyHeaders, h)
-		}
-	}
-
-	for _, h := range emptyHeaders {
-		msg.Header[h] = make([]string, 0)
-	}
-
+	msg.Header.SetText("From", newFrom.String())
 	return msg, nil
 }
 
