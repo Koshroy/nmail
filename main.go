@@ -144,14 +144,14 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 func setDomain(addr *mail.Address, domain string) mail.Address {
 	mailAddr := addr.Address
 	if mailAddr == "" {
-		return mail.Address{"", ""}
+		return mail.Address{Name: "", Address: ""}
 	}
 
 	splits := strings.SplitN(mailAddr, "@", 2)
 	if len(splits) >= 1 {
-		return mail.Address{addr.Name, splits[0] + "@" + domain}
+		return mail.Address{Name: addr.Name, Address: splits[0] + "@" + domain}
 	} else {
-		return mail.Address{"", ""}
+		return mail.Address{Name: "", Address: ""}
 	}
 }
 
