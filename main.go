@@ -184,7 +184,7 @@ func mungeFrom(r io.Reader, srcNode string, debug bool) (*message.Entity, error)
 		return nil, fmt.Errorf("could not parse From address: %w", err)
 	}
 
-	newFrom := setDomain(oldFrom, srcNode + ".nncp")
+	newFrom := setDomain(oldFrom, srcNode+".nncp")
 
 	if debug {
 		log.Println("old From header:", oldFrom.String())
