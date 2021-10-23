@@ -121,8 +121,7 @@ func parseEmailAddress(addr string) (EmailAddress, error) {
 
 func parseRecipient(addr string) (NNCPMailAddress, error) {
 	zero := NNCPMailAddress{"", ""}
-	lower := strings.ToLower(addr)
-	address, err := mail.ParseAddress(lower)
+	address, err := mail.ParseAddress(addr)
 	if err != nil {
 		return zero, err
 	}
