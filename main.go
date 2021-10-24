@@ -59,7 +59,7 @@ func recvMail(sender string, debug bool) {
 		log.Fatalln("No sender provided in NNCP_SENDER, aborting")
 	}
 
-	msg, err := mungeFrom(os.Stdin, sender, debug)
+	msg, err := rewriteFrom(os.Stdin, sender, debug)
 	if err != nil {
 		log.Fatalf("Error rewriting message: %v\n", err)
 		return
@@ -135,7 +135,14 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 		return zero, errors.New("Email domain must use .nncp TLD (must end in .nncp)")
 	}
 
-	nodeName := strings.TrimSuffix(emailAddr.Domain, ".nncp")
+	isNodeId := strings.HasSuffix(emailAddr.Domain, ".id.nncp")
+	var nodeName string
+	if isNodeId {
+		nodeName = strings.ToUpper(strings.TrimSuffix(emailAddr.Domain, ".id.nncp"))
+
+	} else {
+		nodeName = strings.TrimSuffix(emailAddr.Domain, ".nncp")
+	}
 
 	return NNCPMailAddress{emailAddr.LocalPart, nodeName}, nil
 }
@@ -154,7 +161,7 @@ func setDomain(addr *mail.Address, domain string) mail.Address {
 	}
 }
 
-func mungeFrom(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
+func rewriteFrom(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
 	if srcNode == "" {
 		return nil, errors.New("a valid new from address is required")
 	}
@@ -183,7 +190,7 @@ func mungeFrom(r io.Reader, srcNode string, debug bool) (*message.Entity, error)
 		return nil, fmt.Errorf("could not parse From address: %w", err)
 	}
 
-	newFrom := setDomain(oldFrom, srcNode+".nncp")
+	newFrom := setDomain(oldFrom, srcNode+".id.nncp")
 
 	if debug {
 		log.Println("old From header:", oldFrom.String())
