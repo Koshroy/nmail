@@ -32,17 +32,17 @@ func (a NNCPMailAddress) String() string {
 
 func main() {
 	log.SetOutput(os.Stderr)
-	rcpt := flag.String("rcpt", "", "mail recipient")
 	debug := flag.Bool("debug", false, "debug mode")
 	flag.Parse()
 	sendRecv := strings.ToLower(flag.Arg(0))
+	rcpt := flag.Arg(1)
 	nncpCfgPath := getCfgPath(*debug)
 	sender := os.Getenv("NNCP_SENDER")
 
 	if sendRecv == "" {
-		sendMail(*rcpt, nncpCfgPath, *debug)
+		sendMail(rcpt, nncpCfgPath, *debug)
 	} else if sendRecv == "send" {
-		sendMail(*rcpt, nncpCfgPath, *debug)
+		sendMail(rcpt, nncpCfgPath, *debug)
 	} else if sendRecv == "receive" || sendRecv == "recv" {
 		recvMail(sender, *debug)
 	} else {
