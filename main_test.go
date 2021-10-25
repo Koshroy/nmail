@@ -150,57 +150,6 @@ func TestSplitEmailAddressErrNoDomain(t *testing.T) {
 	}
 }
 
-func TestSetDomain(t *testing.T) {
-	name := "Alice Foo"
-	addr := "alice@example.com"
-	mailAddr := mail.Address{
-		Name: name,
-		Address: addr,
-	}
-	expectedAddr := "alice@foo.net"
-
-	newAddr := setDomain(&mailAddr, "foo.net")
-	if newAddr.Name != name {
-		t.Errorf("Expected name of %s but got %s", name, newAddr.Name)
-	}
-	if newAddr.Address != expectedAddr {
-		t.Errorf("Expected name of %s but got %s", expectedAddr, newAddr.Address)
-	}
-}
-
-func TestSetDomainEmptyAddress(t *testing.T) {
-	mailAddr := mail.Address{
-		Name: "Alice Foo",
-		Address: "",
-	}
-
-	newAddr := setDomain(&mailAddr, "foo.net")
-	if newAddr.Name != "" {
-		t.Errorf("Expected empty name but got %s", newAddr.Name)
-	}
-	if newAddr.Address != "" {
-		t.Errorf("Expected empty address but got %s", newAddr.Address)
-	}
-}
-
-func TestSetDomainInvalidEmail(t *testing.T) {
-	name := "Alice Foo"
-	addr := "alice@example@com"
-	mailAddr := mail.Address{
-		Name: name,
-		Address: addr,
-	}
-	expectedAddr := "alice@foo.net"
-
-	newAddr := setDomain(&mailAddr, "foo.net")
-	if newAddr.Name != name {
-		t.Errorf("Expected name of %s but got %s", name, newAddr.Name)
-	}
-	if newAddr.Address != expectedAddr {
-		t.Errorf("Expected name of %s but got %s", expectedAddr, newAddr.Address)
-	}
-}
-
 func TestRewriteHeaders(t *testing.T) {
 	testEmail := "X-A-Header: Test\nFrom: foo@example.com\nSubject: Test\n\nHello World!"
 	buf := bytes.NewBufferString(testEmail)

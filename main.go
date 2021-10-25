@@ -21,6 +21,11 @@ type EmailAddress struct {
 	Domain    string
 }
 
+func (a EmailAddress) String() string {
+	return a.LocalPart + "@" + a.Domain
+}
+
+
 type NNCPMailAddress struct {
 	LocalPart string
 	NodeName  string
@@ -160,20 +165,6 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 	return NNCPMailAddress{emailAddr.LocalPart, nodeName}, nil
 }
 
-func setDomain(addr *mail.Address, domain string) mail.Address {
-	mailAddr := addr.Address
-	if mailAddr == "" {
-		return mail.Address{Name: "", Address: ""}
-	}
-
-	splits := strings.SplitN(mailAddr, "@", 2)
-	if len(splits) >= 1 {
-		return mail.Address{Name: addr.Name, Address: splits[0] + "@" + domain}
-	} else {
-		return mail.Address{Name: "", Address: ""}
-	}
-}
-
 func rewriteHeaders(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
 	if srcNode == "" {
 		return nil, errors.New("a valid new from address is required")
@@ -203,7 +194,21 @@ func rewriteHeaders(r io.Reader, srcNode string, debug bool) (*message.Entity, e
 		return nil, fmt.Errorf("could not parse From address: %w", err)
 	}
 
-	newFrom := setDomain(oldFrom, srcNode+".id.nncp")
+	oldFromAddr, err := splitEmailAddress(oldFrom.Address)
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing From address: %w", err)
+	}
+
+	// On receipt, the sender is always in node ID form. So we always want to
+	// create the new From header in ID form
+	newFromAddr := EmailAddress{
+		LocalPart: oldFromAddr.LocalPart,
+		Domain: srcNode + ".id.nncp",
+	}
+	newFrom := mail.Address{
+		Name: oldFrom.Name,
+		Address: newFromAddr.String(),
+	}
 
 	if debug {
 		log.Println("old From header:", oldFrom.String())
