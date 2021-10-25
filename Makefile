@@ -4,5 +4,5 @@ all: test nncp
 nncp: main.go
 	go build
 
-test: main.go
+test: main.go main_test.go
 	go test
