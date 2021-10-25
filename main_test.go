@@ -87,3 +87,49 @@ func TestParseRecipientInvalidNNCPId(t *testing.T) {
 		t.Error("expected error parsing but got no error")
 	}
 }
+
+func TestSplitEmailAddress(t *testing.T) {
+	addr, err := splitEmailAddress("foo@example.com")
+	localPart := "foo"
+	domain := "example.com"
+
+	if err != nil {
+		t.Errorf("could not split email address: %v", err)
+	}
+	if addr.LocalPart != localPart {
+		t.Errorf("expected local part %s got %s", localPart, addr.LocalPart)
+	}
+	if addr.Domain != domain {
+		t.Errorf("expected local part %s got %s", domain, addr.Domain)
+	}
+}
+
+func TestSplitEmailAddressTLD(t *testing.T) {
+	addr, err := splitEmailAddress("foo@example")
+	localPart := "foo"
+	domain := "example"
+
+	if err != nil {
+		t.Errorf("could not split email address: %v", err)
+	}
+	if addr.LocalPart != localPart {
+		t.Errorf("expected local part %s got %s", localPart, addr.LocalPart)
+	}
+	if addr.Domain != domain {
+		t.Errorf("expected local part %s got %s", domain, addr.Domain)
+	}
+}
+
+func TestSplitEmailAddressErrInvalidAddr(t *testing.T) {
+	_, err := splitEmailAddress("foo@")
+	if err == nil {
+		t.Error("expected error parsing")
+	}
+}
+
+func TestSplitEmailAddressErrNoDomain(t *testing.T) {
+	_, err := splitEmailAddress("foo")
+	if err == nil {
+		t.Error("expected error parsing")
+	}
+}

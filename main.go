@@ -115,6 +115,9 @@ func splitEmailAddress(addr string) (EmailAddress, error) {
 	if len(splits) != 2 {
 		return zero, errors.New("could not split email into localpart and domain")
 	}
+	if splits[1] == "" {
+		return zero, errors.New("could not split email into localpart and domain")
+	}
 
 	return EmailAddress{splits[0], splits[1]}, nil
 }
