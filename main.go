@@ -61,7 +61,7 @@ func recvMail(sender string, debug bool) {
 
 	msg, err := rewriteFrom(os.Stdin, sender, debug)
 	if err != nil {
-		log.Fatalf("Error rewriting message: %v\n", err)
+		log.Fatalf("error rewriting message: %v\n", err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func sendMail(rcpt, nncpCfgPath string, debug bool) {
 
 	address, err := parseRecipient(rcpt)
 	if err != nil {
-		log.Fatalf("Error parsing recipient address %s: %v\n", rcpt, err)
+		log.Fatalf("error parsing recipient address %s: %v\n", rcpt, err)
 	}
 
 	err = nncpSendmail(nncpCfgPath, address, os.Stdin, debug)
@@ -109,11 +109,11 @@ func getCfgPath(debug bool) string {
 	return nncpCfgPath
 }
 
-func parseEmailAddress(addr string) (EmailAddress, error) {
+func splitEmailAddress(addr string) (EmailAddress, error) {
 	zero := EmailAddress{"", ""}
 	splits := strings.SplitN(addr, "@", 2)
 	if len(splits) != 2 {
-		return zero, errors.New("Could not split email into localpart and domain")
+		return zero, errors.New("could not split email into localpart and domain")
 	}
 
 	return EmailAddress{splits[0], splits[1]}, nil
@@ -126,13 +126,13 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 		return zero, err
 	}
 
-	emailAddr, err := parseEmailAddress(address.Address)
+	emailAddr, err := splitEmailAddress(address.Address)
 	if err != nil {
 		return zero, err
 	}
 
 	if !strings.HasSuffix(emailAddr.Domain, ".nncp") {
-		return zero, errors.New("Email domain must use .nncp TLD (must end in .nncp)")
+		return zero, errors.New("email domain must use .nncp TLD (must end in .nncp)")
 	}
 
 	isNodeId := strings.HasSuffix(emailAddr.Domain, ".id.nncp")
