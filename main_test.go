@@ -33,6 +33,25 @@ func TestParseRecipientAlias(t *testing.T) {
 	}
 }
 
+func TestParseRecipientAliasWithName(t *testing.T) {
+	emailRecipient := "Alice Example <foo@alice.nncp>"
+	expectedLocalPart := "foo"
+	expectedNodeName := "alice"
+
+	nncpAddr, err := parseRecipient(emailRecipient)
+	if err != nil {
+		t.Errorf("error parsing: %v", err)
+	}
+
+	if nncpAddr.LocalPart != expectedLocalPart {
+		t.Errorf("expected localpart of %s but got %s", expectedLocalPart, nncpAddr.LocalPart)
+	}
+
+	if nncpAddr.NodeName != expectedNodeName {
+		t.Errorf("expected nodename of %s but got %s", expectedNodeName, nncpAddr.NodeName)
+	}
+}
+
 func TestParseRecipientBadDomain(t *testing.T) {
 	emailRecipient := "foo@alice.example.com"
 
@@ -71,9 +90,12 @@ func TestParseRecipientNodeId(t *testing.T) {
 }
 
 func TestParseRecipientBadNNCPIdDomain(t *testing.T) {
-	emailRecipient := "foo@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.id.foo.nncp"
+	_, err := parseRecipient("foo@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.id.foo.nncp")
+	if err == nil {
+		t.Error("expected error parsing but got no error")
+	}
 
-	_, err := parseRecipient(emailRecipient)
+	_, err = parseRecipient("foo@AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.foo.id.nncp")
 	if err == nil {
 		t.Error("expected error parsing but got no error")
 	}
