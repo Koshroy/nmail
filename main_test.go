@@ -79,15 +79,6 @@ func TestParseRecipientBadNNCPIdDomain(t *testing.T) {
 	}
 }
 
-func TestParseRecipientInvalidNNCPId(t *testing.T) {
-	emailRecipient := "foo@nodeid.id.nncp"
-
-	_, err := parseRecipient(emailRecipient)
-	if err == nil {
-		t.Error("expected error parsing but got no error")
-	}
-}
-
 func TestSplitEmailAddress(t *testing.T) {
 	addr, err := splitEmailAddress("foo@example.com")
 	localPart := "foo"

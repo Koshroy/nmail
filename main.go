@@ -153,9 +153,6 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 	var nodeName string
 	if isNodeId {
 		nodeName = strings.ToUpper(strings.TrimSuffix(emailAddr.Domain, ".id.nncp"))
-		if len(nodeName) != 32 {
-			return zero, errors.New("NNCP node IDs must be 32 code points (base32)")
-		}
 	} else {
 		nodeName = strings.TrimSuffix(emailAddr.Domain, ".nncp")
 	}
