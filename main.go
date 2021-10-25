@@ -59,7 +59,7 @@ func recvMail(sender string, debug bool) {
 		log.Fatalln("No sender provided in NNCP_SENDER, aborting")
 	}
 
-	msg, err := rewriteFrom(os.Stdin, sender, debug)
+	msg, err := rewriteHeaders(os.Stdin, sender, debug)
 	if err != nil {
 		log.Fatalf("error rewriting message: %v\n", err)
 		return
@@ -136,10 +136,23 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 	}
 
 	isNodeId := strings.HasSuffix(emailAddr.Domain, ".id.nncp")
+
+	numDots := strings.Count(emailAddr.Domain, ".")
+	if isNodeId {
+		if numDots != 2 {
+			return zero, errors.New("email domain for node ID must be of the form <ID>.id.nncp")
+		}
+	} else {
+		if numDots != 1 {
+			return zero, errors.New("email domain for node alias must be of form <alias>.nncp")
+		}
+	}
 	var nodeName string
 	if isNodeId {
 		nodeName = strings.ToUpper(strings.TrimSuffix(emailAddr.Domain, ".id.nncp"))
-
+		if len(nodeName) != 32 {
+			return zero, errors.New("NNCP node IDs must be 32 code points (base32)")
+		}
 	} else {
 		nodeName = strings.TrimSuffix(emailAddr.Domain, ".nncp")
 	}
@@ -161,7 +174,7 @@ func setDomain(addr *mail.Address, domain string) mail.Address {
 	}
 }
 
-func rewriteFrom(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
+func rewriteHeaders(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
 	if srcNode == "" {
 		return nil, errors.New("a valid new from address is required")
 	}
