@@ -155,7 +155,7 @@ func TestRewriteHeaders(t *testing.T) {
 	buf := bytes.NewBufferString(testEmail)
 	nodeID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	newFrom := "foo@" + nodeID + ".id.nncp"
-	msg, err := rewriteHeaders(buf, nodeID, false)
+	msg, err := rewriteFromHeader(buf, nodeID, false)
 	if err != nil {
 		t.Errorf("e rewriting headers: %v", err)
 		t.FailNow()
@@ -182,7 +182,7 @@ func TestRewriteHeadersNoFrom(t *testing.T) {
 	testEmail := "X-A-Header: Test\nSubject: Test\n\nHello World!"
 	buf := bytes.NewBufferString(testEmail)
 	nodeID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-	msg, err := rewriteHeaders(buf, nodeID, false)
+	msg, err := rewriteFromHeader(buf, nodeID, false)
 	if err != nil {
 		t.Errorf("e rewriting headers: %v", err)
 		t.FailNow()
@@ -203,7 +203,7 @@ func TestRewriteHeadersEmptyFrom(t *testing.T) {
 	testEmail := "X-A-Header: Test\nFrom: \nSubject: Test\n\nHello World!"
 	buf := bytes.NewBufferString(testEmail)
 	nodeID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-	msg, err := rewriteHeaders(buf, nodeID, false)
+	msg, err := rewriteFromHeader(buf, nodeID, false)
 	if err != nil {
 		t.Errorf("e rewriting headers: %v", err)
 		t.FailNow()

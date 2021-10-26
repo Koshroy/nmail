@@ -65,7 +65,7 @@ func recvMail(sender string, debug bool) {
 		log.Fatalln("No sender provided in NNCP_SENDER, aborting")
 	}
 
-	msg, err := rewriteHeaders(os.Stdin, sender, debug)
+	msg, err := rewriteFromHeader(os.Stdin, sender, debug)
 	if err != nil {
 		log.Fatalf("error rewriting message: %v\n", err)
 		return
@@ -166,7 +166,50 @@ func parseRecipient(addr string) (NNCPMailAddress, error) {
 	return NNCPMailAddress{emailAddr.LocalPart, nodeName}, nil
 }
 
-func rewriteHeaders(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
+func rewriteHeader(entity *message.Entity, header string, rewriteFunc func(string) (string, error)) error {
+	oldHeader, err := entity.Header.Text(header)
+	if err != nil && !message.IsUnknownCharset(err) {
+		return fmt.Errorf("could not parse From header: %w", err)
+	}
+
+	newHeader, err := rewriteFunc(oldHeader)
+	if err != nil {
+		return fmt.Errorf("error rewriting header: %w", err)
+	}
+	
+	entity.Header.SetText(header, newHeader)
+	return nil
+}
+
+func mungeFrom(old, srcNode string) (string, error) {
+	if old == "" {
+		return "", nil
+	}
+
+	oldAddr, err := mail.ParseAddress(old)
+	if err != nil {
+		return "", fmt.Errorf("could not parse From header as address: %w", err)
+	}
+
+	split, err := splitEmailAddress(oldAddr.Address)
+	if err != nil {
+		return "", fmt.Errorf("could not split From header value: %w", err)
+	}
+
+	newAddr := EmailAddress{
+		LocalPart: split.LocalPart,
+		Domain: srcNode + ".id.nncp",
+	}
+
+	newMailAddr := mail.Address{
+		Name: oldAddr.Name,
+		Address: newAddr.String(),
+	}
+
+	return newMailAddr.String(), nil
+}
+
+func rewriteFromHeader(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
 	if srcNode == "" {
 		return nil, errors.New("a valid new from address is required")
 	}
@@ -176,47 +219,15 @@ func rewriteHeaders(r io.Reader, srcNode string, debug bool) (*message.Entity, e
 		return nil, fmt.Errorf("could not read mail message: %w", err)
 	}
 
-	oldFromRaw, err := msg.Header.Text("From")
-	if err != nil && !message.IsUnknownCharset(err) {
-		return nil, fmt.Errorf("could not parse From header: %w", err)
+	rewriteFunc := func(old string) (string, error) {
+		return mungeFrom(old, srcNode)
 	}
 
-	// If there is no From address in the originating email, then we do
-	// not need to perform header munging, so we should just return the email
-	if oldFromRaw == "" {
-		if debug {
-			log.Println("No From header in source email so no need to munge headers")
-		}
-		return msg, nil
-	}
-
-	oldFrom, err := mail.ParseAddress(oldFromRaw)
-	if err != nil && !message.IsUnknownCharset(err) {
-		return nil, fmt.Errorf("could not parse From address: %w", err)
-	}
-
-	oldFromAddr, err := splitEmailAddress(oldFrom.Address)
+	err = rewriteHeader(msg, "From", rewriteFunc)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing From address: %w", err)
+		return nil, fmt.Errorf("could not rewrite From header: %w", err)
 	}
 
-	// On receipt, the sender is always in node ID form. So we always want to
-	// create the new From header in ID form
-	newFromAddr := EmailAddress{
-		LocalPart: oldFromAddr.LocalPart,
-		Domain: srcNode + ".id.nncp",
-	}
-	newFrom := mail.Address{
-		Name: oldFrom.Name,
-		Address: newFromAddr.String(),
-	}
-
-	if debug {
-		log.Println("old From header:", oldFrom.String())
-		log.Println("new From header:", newFrom.String())
-	}
-
-	msg.Header.SetText("From", newFrom.String())
 	return msg, nil
 }
 
