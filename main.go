@@ -25,7 +25,6 @@ func (a EmailAddress) String() string {
 	return a.LocalPart + "@" + a.Domain
 }
 
-
 type NNCPMailAddress struct {
 	LocalPart string
 	NodeName  string
@@ -65,7 +64,7 @@ func recvMail(sender string, debug bool) {
 		log.Fatalln("No sender provided in NNCP_SENDER, aborting")
 	}
 
-	msg, err := rewriteFromHeader(os.Stdin, sender, debug)
+	msg, err := rewriteFromHeader(os.Stdin, sender)
 	if err != nil {
 		log.Fatalf("error rewriting message: %v\n", err)
 		return
@@ -75,6 +74,38 @@ func recvMail(sender string, debug bool) {
 	if err != nil {
 		log.Fatalf("error writing mail to stdout: %v\n", err)
 	}
+}
+
+func rewriteToHeader(r io.Reader) (*message.Entity, error) {
+	msg, err := message.Read(r)
+	if err != nil && !message.IsUnknownCharset(err) {
+		return nil, fmt.Errorf("could not read mail message: %w", err)
+	}
+
+	err = rewriteHeader(msg, "To", mungeTo)
+	if err != nil {
+		return nil, fmt.Errorf("could not rewrite To header: %w", err)
+	}
+
+	return msg, nil
+}
+
+func mungeTo(old string) (string, error) {
+	if old == "" {
+		return "", nil
+	}
+
+	oldAddr, err := mail.ParseAddress(old)
+	if err != nil {
+		return "", fmt.Errorf("could not parse To header as address: %w", err)
+	}
+
+	split, err := splitEmailAddress(oldAddr.Address)
+	if err != nil {
+		return "", fmt.Errorf("could not split From header value: %w", err)
+	}
+
+	return split.LocalPart, nil
 }
 
 func sendMail(rcpt, nncpCfgPath, handle string, debug bool) {
@@ -91,7 +122,18 @@ func sendMail(rcpt, nncpCfgPath, handle string, debug bool) {
 		log.Fatalf("error parsing recipient address %s: %v\n", rcpt, err)
 	}
 
-	err = nncpSendmail(nncpCfgPath, address, handle, os.Stdin, debug)
+	entity, err := rewriteToHeader(os.Stdin)
+	if err != nil {
+		log.Fatalf("could not rewrite To header: %v\n", err)
+	}
+
+	var mail bytes.Buffer
+	err = entity.WriteTo(&mail)
+	if err != nil {
+		log.Fatalf("error writing mail to temp buffer: %v\n", err)
+	}
+
+	err = nncpSendmail(nncpCfgPath, address, handle, &mail, debug)
 	if err != nil {
 		log.Fatalf("error sending mail via nncp: %v\n", err)
 	}
@@ -176,7 +218,7 @@ func rewriteHeader(entity *message.Entity, header string, rewriteFunc func(strin
 	if err != nil {
 		return fmt.Errorf("error rewriting header: %w", err)
 	}
-	
+
 	entity.Header.SetText(header, newHeader)
 	return nil
 }
@@ -198,18 +240,18 @@ func mungeFrom(old, srcNode string) (string, error) {
 
 	newAddr := EmailAddress{
 		LocalPart: split.LocalPart,
-		Domain: srcNode + ".id.nncp",
+		Domain:    srcNode + ".id.nncp",
 	}
 
 	newMailAddr := mail.Address{
-		Name: oldAddr.Name,
+		Name:    oldAddr.Name,
 		Address: newAddr.String(),
 	}
 
 	return newMailAddr.String(), nil
 }
 
-func rewriteFromHeader(r io.Reader, srcNode string, debug bool) (*message.Entity, error) {
+func rewriteFromHeader(r io.Reader, srcNode string) (*message.Entity, error) {
 	if srcNode == "" {
 		return nil, errors.New("a valid new from address is required")
 	}

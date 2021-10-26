@@ -74,7 +74,7 @@ func TestParseRecipientBadNNCPDomain(t *testing.T) {
 
 func TestParseRecipientNodeId(t *testing.T) {
 	nodeID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-	emailRecipient := "foo@"+nodeID+".id.nncp"
+	emailRecipient := "foo@" + nodeID + ".id.nncp"
 	expectedLocalPart := "foo"
 	expectedNodeName := nodeID
 
@@ -150,12 +150,12 @@ func TestSplitEmailAddressErrNoDomain(t *testing.T) {
 	}
 }
 
-func TestRewriteHeaders(t *testing.T) {
+func TestRewriteFromHeader(t *testing.T) {
 	testEmail := "X-A-Header: Test\nFrom: foo@example.com\nSubject: Test\n\nHello World!"
 	buf := bytes.NewBufferString(testEmail)
 	nodeID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	newFrom := "foo@" + nodeID + ".id.nncp"
-	msg, err := rewriteFromHeader(buf, nodeID, false)
+	msg, err := rewriteFromHeader(buf, nodeID)
 	if err != nil {
 		t.Errorf("e rewriting headers: %v", err)
 		t.FailNow()
@@ -178,11 +178,11 @@ func TestRewriteHeaders(t *testing.T) {
 	}
 }
 
-func TestRewriteHeadersNoFrom(t *testing.T) {
+func TestRewriteFromHeaderNoFrom(t *testing.T) {
 	testEmail := "X-A-Header: Test\nSubject: Test\n\nHello World!"
 	buf := bytes.NewBufferString(testEmail)
 	nodeID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-	msg, err := rewriteFromHeader(buf, nodeID, false)
+	msg, err := rewriteFromHeader(buf, nodeID)
 	if err != nil {
 		t.Errorf("e rewriting headers: %v", err)
 		t.FailNow()
@@ -199,11 +199,11 @@ func TestRewriteHeadersNoFrom(t *testing.T) {
 	}
 }
 
-func TestRewriteHeadersEmptyFrom(t *testing.T) {
+func TestRewriteFromHeaderEmptyFrom(t *testing.T) {
 	testEmail := "X-A-Header: Test\nFrom: \nSubject: Test\n\nHello World!"
 	buf := bytes.NewBufferString(testEmail)
 	nodeID := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-	msg, err := rewriteFromHeader(buf, nodeID, false)
+	msg, err := rewriteFromHeader(buf, nodeID)
 	if err != nil {
 		t.Errorf("e rewriting headers: %v", err)
 		t.FailNow()
@@ -217,5 +217,67 @@ func TestRewriteHeadersEmptyFrom(t *testing.T) {
 
 	if from != "" {
 		t.Errorf("expected no From header got %s", from)
+	}
+}
+
+func TestRewriteToHeader(t *testing.T) {
+	name := "foo"
+	addr := name + "@example.com"
+	testEmail := "X-A-Header: Test\nTo: " + addr + "\nSubject: Test\n\nHello World!"
+	buf := bytes.NewBufferString(testEmail)
+	msg, err := rewriteToHeader(buf)
+	if err != nil {
+		t.Errorf("e rewriting headers: %v", err)
+		t.FailNow()
+	}
+
+	to, err := msg.Header.Text("To")
+	if err != nil {
+		t.Errorf("could not grab To header: %v\n", err)
+		t.FailNow()
+	}
+
+	if to != name {
+		t.Errorf("for To header expected %s got %s", name, to)
+	}
+}
+
+func TestRewriteToHeaderNoTo(t *testing.T) {
+	testEmail := "X-A-Header: Test\nSubject: Test\n\nHello World!"
+	buf := bytes.NewBufferString(testEmail)
+	msg, err := rewriteToHeader(buf)
+	if err != nil {
+		t.Errorf("e rewriting headers: %v", err)
+		t.FailNow()
+	}
+
+	to, err := msg.Header.Text("To")
+	if err != nil {
+		t.Errorf("could not grab To header: %v\n", err)
+		t.FailNow()
+	}
+
+	if to != "" {
+		t.Error("expected empty To header")
+	}
+}
+
+func TestRewriteToHeaderEmptyTo(t *testing.T) {
+	testEmail := "X-A-Header: Test\nTo: \nSubject: Test\n\nHello World!"
+	buf := bytes.NewBufferString(testEmail)
+	msg, err := rewriteToHeader(buf)
+	if err != nil {
+		t.Errorf("e rewriting headers: %v", err)
+		t.FailNow()
+	}
+
+	to, err := msg.Header.Text("To")
+	if err != nil {
+		t.Errorf("could not grab To header: %v\n", err)
+		t.FailNow()
+	}
+
+	if to != "" {
+		t.Error("expected empty To header")
 	}
 }
