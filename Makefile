@@ -1,8 +1,8 @@
 .PHONY: all test
 all: test nncp
 
-nncp: main.go
+nncp: main.go send.go recv.go util.go
 	go build
 
-test: main.go main_test.go
+test: send_test.go recv_test.go util_test.go
 	go test
