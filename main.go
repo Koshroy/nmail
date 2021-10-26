@@ -38,6 +38,7 @@ func (a NNCPMailAddress) String() string {
 func main() {
 	log.SetOutput(os.Stderr)
 	debug := flag.Bool("debug", false, "debug mode")
+	sendMailHandle := flag.String("handle", "sendmail", "handle used to send mail")
 	flag.Parse()
 	sendRecv := strings.ToLower(flag.Arg(0))
 	rcpt := flag.Arg(1)
@@ -45,9 +46,9 @@ func main() {
 	sender := os.Getenv("NNCP_SENDER")
 
 	if sendRecv == "" {
-		sendMail(rcpt, nncpCfgPath, *debug)
+		sendMail(rcpt, nncpCfgPath, *sendMailHandle, *debug)
 	} else if sendRecv == "send" {
-		sendMail(rcpt, nncpCfgPath, *debug)
+		sendMail(rcpt, nncpCfgPath, *sendMailHandle, *debug)
 	} else if sendRecv == "receive" || sendRecv == "recv" {
 		recvMail(sender, *debug)
 	} else {
@@ -76,7 +77,7 @@ func recvMail(sender string, debug bool) {
 	}
 }
 
-func sendMail(rcpt, nncpCfgPath string, debug bool) {
+func sendMail(rcpt, nncpCfgPath, handle string, debug bool) {
 	if debug {
 		log.Println("send mail")
 	}
@@ -90,7 +91,7 @@ func sendMail(rcpt, nncpCfgPath string, debug bool) {
 		log.Fatalf("error parsing recipient address %s: %v\n", rcpt, err)
 	}
 
-	err = nncpSendmail(nncpCfgPath, address, os.Stdin, debug)
+	err = nncpSendmail(nncpCfgPath, address, handle, os.Stdin, debug)
 	if err != nil {
 		log.Fatalf("error sending mail via nncp: %v\n", err)
 	}
@@ -219,7 +220,7 @@ func rewriteHeaders(r io.Reader, srcNode string, debug bool) (*message.Entity, e
 	return msg, nil
 }
 
-func nncpSendmail(nncpCfgPath string, recipient NNCPMailAddress, reader io.Reader, debug bool) error {
+func nncpSendmail(nncpCfgPath string, recipient NNCPMailAddress, handle string, reader io.Reader, debug bool) error {
 	var cmd *exec.Cmd
 	var out *bytes.Buffer
 
@@ -239,9 +240,9 @@ func nncpSendmail(nncpCfgPath string, recipient NNCPMailAddress, reader io.Reade
 	}
 
 	if nncpCfgPath == "" {
-		cmd = exec.Command("nncp-exec", recipient.NodeName, "sendmail", recipient.LocalPart)
+		cmd = exec.Command("nncp-exec", recipient.NodeName, handle, recipient.LocalPart)
 	} else {
-		cmd = exec.Command("nncp-exec", "-cfg", nncpCfgPath, recipient.NodeName, "sendmail", recipient.LocalPart)
+		cmd = exec.Command("nncp-exec", "-cfg", nncpCfgPath, recipient.NodeName, handle, recipient.LocalPart)
 	}
 	if debug {
 		cmd.Stderr = out
